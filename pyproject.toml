@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "cisa-kev"
+version = "0.1.0"
+description = "A dependency-free API client for the CISA Known Exploited Vulnerabilities (KEV) catalogue"
+authors = ["Tyler Fisher <tylerfisher@tylerfisher.ca>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.scripts]
+kev = "cisa_kev.kev:_cli"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
