@@ -251,63 +251,95 @@ class JSONEncoder(_JSONEncoder):
             return super().default(o)
 
 
+def read_catalog(path: Optional[str] = None, fallback_url: str = KEV_URL, raw: bool = False) -> Union[dict, Catalog]:
+    if not path:
+        return download_latest(url=fallback_url, raw=raw)
+
+    try:
+        data = read_json_file(path)
+    except FileNotFoundError:
+        return download_latest(url=fallback_url, raw=raw)
+    else:
+        if not raw:
+            data = parse_catalog(data)
+        return data
+
+
+def read_json_file(path: str) -> dict:
+    with open(path, 'r') as file:
+        return json.load(file)
+
+
 def _cli():
-    parser = argparse.ArgumentParser(description='CISA Known Exploited Vulnerabilities Catalog')
+    parser = argparse.ArgumentParser(description='CISA Known Exploited Vulnerabilities (KEV) Catalog')
     parser.add_argument('--raw', action='store_true', help="Don't parse the catalog")
+    parser.add_argument('--input-file', '-i', help='Input file (JSON)')
+    parser.add_argument('--fallback-url', '-u', default=KEV_URL, help='Fallback URL')
     parser.add_argument('--output-file', '-o', help='Output file')
-    parser.add_argument('--output-type', '-t', choices=['full', 'cve_ids', 'date_added', 'due_date'], default='full', help='Output type (i.e. what to output)')
+    parser.add_argument('--output-type', '-t', choices=['full', 'cve_ids', 'dates', 'date_added', 'due_date'], default='full', help='Output type (i.e. what to output)')
     parser.add_argument('--output-format', '-f', choices=['json', 'jsonl'], default='json', help='Output format (i.e. how to output)')
     parser.add_argument('--indent', type=int, default=4, help='Indentation level')
 
     args = vars(parser.parse_args())
     
     raw = args['raw']
+    input_file = args['input_file']
+    fallback_url = args['fallback_url']
     output_file = args['output_file']
     output_type = args['output_type']
     output_format = args['output_format']
     indent = args['indent']
 
-    # TODO: allow for different output types
+    cve_id_key = 'cveID' if raw else 'cve_id'
+    due_date_key = 'dueDate' if raw else 'due_date'
+    date_added_key = 'dateAdded' if raw else 'date_added'
+
     if output_format == 'json':
         s = functools.partial(json.dumps, indent=indent, cls=JSONEncoder)
         if output_type == 'full':
-            data = download_latest(raw=raw)
+            data = read_catalog(path=input_file, fallback_url=fallback_url, raw=raw)
         else:
-            catalog = download_latest(raw=False)
+            catalog = read_catalog(path=input_file, fallback_url=fallback_url, raw=False)
             if output_type == 'cve_ids':
                 data = catalog.cve_ids
             elif output_type == 'date_added':
                 data = catalog.dates_added
             elif output_type == 'due_date':
                 data = catalog.due_dates
+            elif output_type == 'dates':
+                data = [{cve_id_key: v.cve_id, date_added_key: v.date_added, due_date_key: v.due_date} for v in catalog.vulnerabilities]
             else:
                 raise ValueError(f'Invalid output type: {output_type}')
             
-            blob = s(data)
-            if output_file:
-                with open(output_file, 'w') as file:
-                    file.write(blob)
-            else:
-                print(blob)
+        blob = s(data)
+        if output_file:
+            with open(output_file, 'w') as file:
+                file.write(blob)
+        else:
+            print(blob)
 
     elif output_format == 'jsonl':
         s = functools.partial(json.dumps, cls=JSONEncoder)
 
         if output_type == 'full':
-            catalog = download_latest(raw=raw)
+            catalog = read_catalog(path=input_file, fallback_url=fallback_url, raw=raw)
             if raw:
                 rows = sorted(catalog['vulnerabilities'], key=lambda o: o['cveID'])
             else:
                 rows = sorted(catalog.vulnerabilities, key=lambda o: o.cve_id)
-
-        elif output_type == 'cve_ids':
-            rows = [{'cve_id': cve_id} for cve_id in download_latest(raw=False).cve_ids]
-        elif output_type == 'date_added':
-            rows = [{'cve_id': cve_id, 'date_added': date_added} for (cve_id, date_added) in download_latest(raw=False).dates_added.items()]
-        elif output_type == 'due_date':
-            rows = [{'cve_id': cve_id, 'due_date': due_date} for (cve_id, due_date) in download_latest(raw=False).due_dates.items()]
         else:
-            raise ValueError(f'Invalid output type: {output_type}')
+            catalog = read_catalog(path=input_file, fallback_url=fallback_url, raw=False)
+
+            if output_type == 'cve_ids':
+                rows = [{cve_id_key: cve_id} for cve_id in catalog.cve_ids]
+            elif output_type == 'date_added':
+                rows = [{cve_id_key: cve_id, date_added_key: date_added} for (cve_id, date_added) in catalog.dates_added.items()]
+            elif output_type == 'due_date':
+                rows = [{cve_id_key: cve_id, due_date_key: due_date} for (cve_id, due_date) in catalog.due_dates.items()]
+            elif output_type == 'dates':
+                rows = [{cve_id_key: v.cve_id, date_added_key: v.date_added, due_date_key: v.due_date} for v in catalog.vulnerabilities]
+            else:
+                raise ValueError(f'Invalid output type: {output_type}')
         
         if output_file:
             with open(output_file, 'w') as file:
