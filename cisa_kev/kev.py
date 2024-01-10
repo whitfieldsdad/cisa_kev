@@ -1,11 +1,12 @@
 import argparse
+import copy
 from dataclasses import dataclass
 import dataclasses
 import datetime
 import fnmatch
 import functools
 import json
-import os
+import sys
 from typing import Dict, Iterable, List, Optional, Union
 import urllib.request
 from json import JSONEncoder as _JSONEncoder
@@ -107,6 +108,22 @@ class Filter:
                 return False
 
         return True
+    
+    def empty(self) -> bool:
+        return not any([
+            self.cve_ids,
+            self.vendors,
+            self.products,
+            self.min_date_added,
+            self.max_date_added,
+            self.min_due_date,
+            self.max_due_date,
+            self.known_ransomware_campaign_use,
+            self.overdue
+        ])
+
+    def __bool__(self) -> bool:
+        return self.empty() is False
 
 
 @dataclass()
@@ -178,7 +195,7 @@ class Catalog:
         return {e.cve_id: e.due_date for e in entries}
     
     def is_up_to_date(self, url: str = KEV_URL) -> bool:
-        catalog = download_latest(url=url, raw=True)
+        catalog = download_latest(url=url)
         return catalog['catalogVersion'] == self.version
     
     def update(self, url: str = KEV_URL) -> "Catalog":
@@ -202,25 +219,21 @@ class Catalog:
         )
 
 
-def download_latest(url: str = KEV_URL, raw: bool = True) -> Union[dict, Catalog]:
+def download_latest(url: str = KEV_URL) -> Catalog:
     response = urllib.request.urlopen(url)
     catalog = json.loads(response.read())
-    if not raw:
-        catalog = parse_catalog(catalog)
+    catalog = parse_catalog(catalog)
     return catalog
 
 
-def parse_catalog(o: dict, raw: Optional[bool] = True) -> Catalog:
-    if raw:
-        return _parse_raw_catalog(o)
+def parse_catalog(o: dict) -> Catalog:
+    for f in [_parse_raw_catalog, _parse_processed_catalog]:
+        try:
+            return f(o)
+        except (TypeError, KeyError):
+            continue
     else:
-        for f in [_parse_processed_catalog, _parse_raw_catalog]:
-            try:
-                return f(o)
-            except (KeyError, TypeError):
-                continue
-        else:
-            raise ValueError(f'Failed to parse catalog')
+        raise ValueError('Failed to parse catalog')
 
 
 def _parse_raw_catalog(o: dict) -> Catalog:
@@ -241,18 +254,14 @@ def _parse_processed_catalog(o: dict) -> Catalog:
     )
 
 
-
-def parse_vulnerability(o: dict, raw: Optional[bool] = True) -> Vulnerability:
-    if not raw:
-        return _parse_raw_vulnerability(o)
+def parse_vulnerability(o: dict) -> Vulnerability:
+    for f in [_parse_raw_vulnerability, _parse_processed_vulnerability]:
+        try:
+            return f(o)
+        except (TypeError, KeyError):
+            continue
     else:
-        for f in [_parse_processed_vulnerability, _parse_raw_vulnerability]:
-            try:
-                return f(o)
-            except (KeyError, TypeError):
-                continue
-        else:
-            raise ValueError(f'Failed to parse vulnerability')
+        raise ValueError('Failed to parse vulnerability')
 
 
 def _parse_raw_vulnerability(o: dict) -> Vulnerability:
@@ -291,18 +300,27 @@ class JSONEncoder(_JSONEncoder):
             return super().default(o)
 
 
-def read_catalog(path: Optional[str] = None, fallback_url: str = KEV_URL, raw: bool = True) -> Union[dict, Catalog]:
+def read_catalog(path: Optional[str] = None, fallback_url: str = KEV_URL) -> Union[dict, Catalog]:
     if not path:
-        return download_latest(url=fallback_url, raw=raw)
+        return download_latest(url=fallback_url)
 
     try:
         data = read_json_file(path)
     except FileNotFoundError:
-        return download_latest(url=fallback_url, raw=raw)
+        return download_latest(url=fallback_url)
     else:
-        if not raw:
-            data = parse_catalog(data, raw=raw)
+        data = parse_catalog(data)
         return data
+    
+
+def filter_catalog(catalog: Union[dict, Catalog], f: Union[dict, Filter]) -> Union[dict, Catalog]:
+    if isinstance(f, dict):
+        f = Filter(**f)
+    
+    if isinstance(catalog, dict):
+        catalog = parse_catalog(catalog)
+
+    return catalog.filter(f)
 
 
 def read_json_file(path: str) -> dict:
@@ -332,7 +350,12 @@ def str_matches(value: str, pattern: str, case_sensitive: bool = False) -> bool:
 
 def _cli():
     parser = argparse.ArgumentParser(description='CISA Known Exploited Vulnerabilities (KEV) Catalog')
-    parser.add_argument('--raw', action='store_true', help="Don't modify the format of the catalog")
+    parser.add_argument('--cve-id', dest='cve_ids', action='append', help='Show vulnerabilities by CVE ID')
+    parser.add_argument('--vendor', dest='vendors', action='append', help='Show vulnerabilities by vendor name')
+    parser.add_argument('--product', dest='products', action='append', help='Show vulnerabilities by product name')
+    parser.add_argument('--ransomware', action='store_true', default=None, help='Show vulnerabilities related to ransomware campaigns')
+    parser.add_argument('--overdue', action='store_true', default=None, help='Show vulnerabilities that are overdue for patching')
+    parser.add_argument('--not-overdue', action='store_false', dest='overdue', help='Hide vulnerabilities that are overdue for patching')
     parser.add_argument('--input-file', '-i', help='Input file (JSON)')
     parser.add_argument('--fallback-url', '-u', default=KEV_URL, help='Fallback URL')
     parser.add_argument('--output-file', '-o', help='Output file')
@@ -342,7 +365,6 @@ def _cli():
 
     args = vars(parser.parse_args())
     
-    raw = args['raw']
     input_file = args['input_file']
     fallback_url = args['fallback_url']
     output_file = args['output_file']
@@ -350,16 +372,22 @@ def _cli():
     output_format = args['output_format']
     indent = args['indent']
 
-    cve_id_key = 'cveID' if raw else 'cve_id'
-    due_date_key = 'dueDate' if raw else 'due_date'
-    date_added_key = 'dateAdded' if raw else 'date_added'
+    vulnerability_filter = Filter(
+        cve_ids=args['cve_ids'],
+        vendors=args['vendors'],
+        products=args['products'],
+        known_ransomware_campaign_use=args['ransomware'],
+        overdue=args['overdue'],
+    )
+    catalog = read_catalog(path=input_file, fallback_url=fallback_url)
+    if vulnerability_filter:
+        catalog = catalog.filter(vulnerability_filter)
 
     if output_format == 'json':
         s = functools.partial(json.dumps, indent=indent, cls=JSONEncoder)
         if output_type == 'full':
-            data = read_catalog(path=input_file, fallback_url=fallback_url, raw=raw)
+            data = catalog
         else:
-            catalog = read_catalog(path=input_file, fallback_url=fallback_url, raw=False)
             if output_type == 'cve_ids':
                 data = catalog.cve_ids
             elif output_type == 'date_added':
@@ -367,7 +395,7 @@ def _cli():
             elif output_type == 'due_date':
                 data = catalog.due_dates
             elif output_type == 'dates':
-                data = [{cve_id_key: v.cve_id, date_added_key: v.date_added, due_date_key: v.due_date} for v in catalog.vulnerabilities]
+                data = [{'cve_id': v.cve_id, 'date_added': v.date_added, 'due_date': v.due_date} for v in catalog.vulnerabilities]
             else:
                 raise ValueError(f'Invalid output type: {output_type}')
             
@@ -382,21 +410,16 @@ def _cli():
         s = functools.partial(json.dumps, cls=JSONEncoder)
 
         if output_type == 'full':
-            catalog = read_catalog(path=input_file, fallback_url=fallback_url, raw=raw)
-            if raw:
-                rows = sorted(catalog['vulnerabilities'], key=lambda o: o['cveID'])
-            else:
-                rows = sorted(catalog.vulnerabilities, key=lambda o: o.cve_id)
+            rows = sorted(catalog.vulnerabilities, key=lambda o: o.cve_id)
         else:
-            catalog = read_catalog(path=input_file, fallback_url=fallback_url, raw=False)
             if output_type == 'cve_ids':
-                rows = [{cve_id_key: cve_id} for cve_id in catalog.cve_ids]
+                rows = [{'cve_id': cve_id} for cve_id in catalog.cve_ids]
             elif output_type == 'date_added':
-                rows = [{cve_id_key: cve_id, date_added_key: date_added} for (cve_id, date_added) in catalog.dates_added.items()]
+                rows = [{'cve_id': cve_id, 'date_added': date_added} for (cve_id, date_added) in catalog.dates_added.items()]
             elif output_type == 'due_date':
-                rows = [{cve_id_key: cve_id, due_date_key: due_date} for (cve_id, due_date) in catalog.due_dates.items()]
+                rows = [{'cve_id': cve_id, 'due_dates': due_date} for (cve_id, due_date) in catalog.due_dates.items()]
             elif output_type == 'dates':
-                rows = [{cve_id_key: v.cve_id, date_added_key: v.date_added, due_date_key: v.due_date} for v in catalog.vulnerabilities]
+                rows = [{'cve_id': v.cve_id, 'date_added': v.date_added, 'due_date': v.due_date} for v in catalog.vulnerabilities]
             else:
                 raise ValueError(f'Invalid output type: {output_type}')
         
