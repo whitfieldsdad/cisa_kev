@@ -6,7 +6,6 @@ A dependency-free Python 3 client for the [CISA Known Exploited Vulnerabilities 
 
 - [Download the latest copy of the catalog](#downloading-the-catalog) in [JSON](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json) [format](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities_schema.json) or work with a [local copy](data/known_exploited_vulnerabilities.json)
 - [Query the catalog via the command line](#query-the-catalog-via-the-command-line)
-- Determine which vulnerabilities have been added to the catalog, when those vulnerabilities must be patched, and which vulnerabilities are overdue for patching
 
 ## Installation
 

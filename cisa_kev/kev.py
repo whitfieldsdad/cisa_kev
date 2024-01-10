@@ -1,12 +1,10 @@
 import argparse
-import copy
 from dataclasses import dataclass
 import dataclasses
 import datetime
 import fnmatch
 import functools
 import json
-import sys
 from typing import Dict, Iterable, List, Optional, Union
 import urllib.request
 from json import JSONEncoder as _JSONEncoder
