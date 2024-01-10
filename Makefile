@@ -18,4 +18,10 @@ data: init
 	poetry run kev -i o/data/known_exploited_vulnerabilities.json -f jsonl -o data/known_exploited_vulnerabilities_processed.jsonl
 	poetry run kev -i o/data/known_exploited_vulnerabilities.json -f jsonl -t dates -o data/important_dates.jsonl
 
+build:
+	poetry build
+
+publish:
+	poetry publish
+
 .PHONY: download data

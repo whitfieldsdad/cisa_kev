@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cisa-kev"
-version = "0.1.0"
+version = "1.0.0"
 description = "A dependency-free API client for the CISA Known Exploited Vulnerabilities (KEV) catalogue"
 authors = ["Tyler Fisher <tylerfisher@tylerfisher.ca>"]
 license = "MIT"
