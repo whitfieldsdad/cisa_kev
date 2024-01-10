@@ -2,13 +2,12 @@ import argparse
 from dataclasses import dataclass
 import dataclasses
 import datetime
+import fnmatch
 import functools
 import json
-import sys
 from typing import Dict, Iterable, List, Optional, Union
 import urllib.request
 from json import JSONEncoder as _JSONEncoder
-import cisa_kev.pattern_matching as pattern_matching
 
 KEV_URL = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json'
 
@@ -80,13 +79,13 @@ class Filter:
         if self.known_ransomware_campaign_use is not None and self.known_ransomware_campaign_use != vulnerability.known_ransomware_campaign_use:
             return False
 
-        if self.cve_ids and not pattern_matching.matches_any(vulnerability.cve_id, self.cve_ids):
+        if self.cve_ids and not str_matches_any(vulnerability.cve_id, self.cve_ids):
             return False
         
-        if self.vendors and not pattern_matching.matches_any(vulnerability.vendor, self.vendors):
+        if self.vendors and not str_matches_any(vulnerability.vendor, self.vendors):
             return False
         
-        if self.products and not pattern_matching.matches_any(vulnerability.product, self.products):
+        if self.products and not str_matches_any(vulnerability.product, self.products):
             return False
         
         if self.min_date_added and vulnerability.date_added < self.min_date_added:
@@ -268,6 +267,26 @@ def read_catalog(path: Optional[str] = None, fallback_url: str = KEV_URL, raw: b
 def read_json_file(path: str) -> dict:
     with open(path, 'r') as file:
         return json.load(file)
+
+
+def str_matches_any(value: str, patterns: Iterable[str], case_sensitive: bool = False) -> bool:
+    value = value if case_sensitive else value.lower()
+    for pattern in patterns:
+        pattern = pattern if case_sensitive else pattern.lower()
+        if str_matches(value, pattern, case_sensitive=True):
+            return True
+    return False
+
+
+def str_matches(value: str, pattern: str, case_sensitive: bool = False) -> bool:
+    if not case_sensitive:
+        value = value.lower()
+        pattern = pattern.lower()
+
+    if '*' in pattern:
+        return fnmatch.fnmatch(value, pattern)
+    else:
+        return value == pattern
 
 
 def _cli():
