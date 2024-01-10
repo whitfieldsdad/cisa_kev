@@ -10,10 +10,22 @@ A dependency-free Python 3 client for the [CISA Known Exploited Vulnerabilities 
 
 ## Installation
 
-To install the client locally:
+To install using `pip`:
 
 ```bash
 python3 -m pip install cisa_kev
+```
+
+To add to a [Poetry](https://python-poetry.org/) project:
+
+```bash
+poetry add cisa_kev
+```
+
+To install from source:
+
+```bash
+poetry install
 ```
 
 ## Usage
