@@ -8,6 +8,14 @@ A dependency-free Python 3 client for the [CISA Known Exploited Vulnerabilities 
 - [Query the catalog via the command line](#query-the-catalog-via-the-command-line)
 - Determine which vulnerabilities have been added to the catalog, when those vulnerabilities must be patched, and which vulnerabilities are overdue for patching
 
+## Installation
+
+To install the client locally:
+
+```bash
+python3 -m pip install cisa_kev
+```
+
 ## Usage
 
 ### Command line interface
@@ -15,7 +23,7 @@ A dependency-free Python 3 client for the [CISA Known Exploited Vulnerabilities 
 The command line interface only has a single command and allows you to query a local or remote copy of the catalog (i.e. using a local file or a URL).
 
 ```bash
-python3 cisa_kev/kev.py --help
+python3 -m cisa_kev --help
 ```
 
 ```text
