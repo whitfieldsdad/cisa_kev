@@ -1,1 +1,1 @@
-from cisa_kev.kev import *
+from .kev import *
