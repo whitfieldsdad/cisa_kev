@@ -4,7 +4,7 @@ A dependency-free Python 3 client for the [CISA Known Exploited Vulnerabilities 
 
 ## Features
 
-- A simple command line interface that can be used to query a [local](data/known_exploited_vulnerabilities.json) or [remote](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) copy of the KEV catalog in JSON format
+- Download the latest copy of the catalog in [JSON](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json) [format](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities_schema.json) or work with a local copy
 
 ## Usage
 

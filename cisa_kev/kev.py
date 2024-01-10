@@ -11,7 +11,6 @@ import urllib.request
 from json import JSONEncoder as _JSONEncoder
 
 KEV_URL = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json'
-KEV_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'known_exploited_vulnerabilities.json')
 
 _MULTIPLE_PRODUCTS = 'Multiple Products'
 _MULTIPLE_FIREWALLS = 'Multiple Firewalls'
