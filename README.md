@@ -10,6 +10,7 @@ A wildly opinionated Python 3 client for the [CISA Known Exploited Vulnerabiliti
 - Optionally disable the use of TLS certificate verification (i.e. for users operating within a network where TLS MitM is being performed, and [cisa.gov](https://cisa.gov) has not been allowlisted)
 
 > ℹ️ The CISA KEV catalog will be downloaded to a file named `f70af4e5-602d-4b6f-a6cd-01be603ae2bb/known_exploited_vulnerabilities.json` in the system's temporary directory by default
+
 > ℹ️ The download location can be customized through both the library and command line
 
 ## Installation
