@@ -3,7 +3,7 @@ default: requirements build
 build:
 	poetry build
 
-publish:
+publish: build
 	poetry publish
 
 requirements:

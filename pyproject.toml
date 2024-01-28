@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cisa-kev"
-version = "2.0.0"
+version = "2.0.1"
 description = "A wildly opinionated client for the CISA Known Exploited Vulnerabilities (KEV) catalog"
 authors = ["Tyler Fisher <tylerfisher@tylerfisher.ca>"]
 license = "MIT"
