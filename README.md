@@ -5,8 +5,8 @@ A wildly opinionated Python 3 client for the [CISA Known Exploited Vulnerabiliti
 ## Features
 
 - Automatically download the latest version of the CISA KEV catalog;
-- Query the catalog using dataclasses, Pandas, or Polars;
-- Query the catalog from the command line and return the results in JSON, JSONL, CSV, or Parquet format; and
+- Query the catalog using dataclasses, [Pandas](examples/list-ransomware-related-microsoft-vulnerabilities-with-pandas.py), or [Polars](examples/list-ransomware-related-microsoft-vulnerabilities-with-polars-sql.py);
+- Query the catalog from the [command line](#command-line) and return the results in JSON, JSONL, CSV, or Parquet format; and
 - Optionally disable the use of TLS certificate verification (i.e. for users operating within a network where TLS MitM is being performed, and [cisa.gov](https://cisa.gov) has not been allowlisted)
 
 > ℹ️ The CISA KEV catalog will be downloaded to a file named `f70af4e5-602d-4b6f-a6cd-01be603ae2bb/known_exploited_vulnerabilities.json` in the system's temporary directory by default
