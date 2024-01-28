@@ -18,11 +18,11 @@ with pl.SQLContext(df=df, eager_execution=True) as ctx:
         vendor, 
         product, 
         date_added, 
-        due_date 
+        due_date,
+        due_date - date_added AS patch_window
     FROM df 
     WHERE known_ransomware_campaign_use = true AND vendor ILIKE '%microsoft%' 
     ORDER BY date_added ASC
     """
     result = ctx.execute(query)
     print(result)
-
