@@ -1,16 +1,22 @@
 [tool.poetry]
 name = "cisa-kev"
-version = "1.0.1"
-description = "A dependency-free API client for the CISA Known Exploited Vulnerabilities (KEV) catalogue"
+version = "2.0.0"
+description = "A wildly opinionated client for the CISA Known Exploited Vulnerabilities (KEV) catalog"
 authors = ["Tyler Fisher <tylerfisher@tylerfisher.ca>"]
 license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
+polars = "^0.20.6"
+click = "^8.1.7"
+requests = "^2.31.0"
+pandas = "^2.2.0"
 
 [tool.poetry.scripts]
-kev = "cisa_kev.kev:_cli"
+cisa_kev = "cisa_kev.cli:main"
+kev = "cisa_kev.cli:main"
+tool = "cisa_kev.cli:main"
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,11 +1,16 @@
 # CISA Known Exploited Vulnerabilities (KEV) Catalog client
 
-A dependency-free Python 3 client for the [CISA Known Exploited Vulnerabilities (KEV) Catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog).
+A wildly opinionated Python 3 client for the [CISA Known Exploited Vulnerabilities (KEV) Catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog).
 
 ## Features
 
-- [Download the latest copy of the catalog](#downloading-the-catalog) in [JSON](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json) [format](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities_schema.json) or work with a [local copy](data/known_exploited_vulnerabilities.json)
-- [Query the catalog via the command line](#query-the-catalog-via-the-command-line)
+- Automatically download the latest version of the CISA KEV catalog;
+- Query the catalog using dataclasses, Pandas, or Polars;
+- Query the catalog from the command line and return the results in JSON, JSONL, CSV, or Parquet format; and
+- Optionally disable the use of TLS certificate verification (i.e. for users operating within a network where TLS MitM is being performed, and [cisa.gov](https://cisa.gov) has not been allowlisted)
+
+> ℹ️ The CISA KEV catalog will be downloaded to a file named `f70af4e5-602d-4b6f-a6cd-01be603ae2bb/known_exploited_vulnerabilities.json` in the system's temporary directory by default
+> ℹ️ The download location can be customized through both the library and command line
 
 ## Installation
 
@@ -29,237 +34,191 @@ poetry install
 
 ## Usage
 
-### Command line interface
+- [Command line](#command-line)
 
-The command line interface only has a single command and allows you to query a local or remote copy of the catalog (i.e. using a local file or a URL).
+### Command line
 
-```bash
-python3 -m cisa_kev --help
-```
-
-```text
-usage: kev.py [-h] [--vendor VENDOR] [--product PRODUCT] [--ransomware] [--overdue] [--not-overdue]
-              [--input-file INPUT_FILE] [--fallback-url FALLBACK_URL] [--output-file OUTPUT_FILE]
-              [--output-type {full,cve_ids,dates,date_added,due_date}] [--output-format {json,jsonl}] [--indent INDENT]
-
-CISA Known Exploited Vulnerabilities (KEV) Catalog
-
-options:
-  -h, --help            show this help message and exit
-  --vendor VENDOR       Show vulnerabilities by vendor name
-  --product PRODUCT     Show vulnerabilities by product name
-  --ransomware          Show vulnerabilities related to ransomware campaigns
-  --overdue             Show vulnerabilities that are overdue for patching
-  --not-overdue         Hide vulnerabilities that are overdue for patching
-  --input-file INPUT_FILE, -i INPUT_FILE
-                        Input file (JSON)
-  --fallback-url FALLBACK_URL, -u FALLBACK_URL
-                        Fallback URL
-  --output-file OUTPUT_FILE, -o OUTPUT_FILE
-                        Output file
-  --output-type {full,cve_ids,dates,date_added,due_date}, -t {full,cve_ids,dates,date_added,due_date}
-                        Output type (i.e. what to output)
-  --output-format {json,jsonl}, -f {json,jsonl}
-                        Output format (i.e. how to output)
-  --indent INDENT       Indentation level
-```
-
-Throughout this guide, the following commands are equivalent:
+The following commands are equivalent:
 
 ```bash
-python3 cisa_kev/kev.py
-```
-
-```bash
-python3 -m cisa_kev
-```
-
-```bash
+poetry run cisa_kev
 poetry run kev
+poetry run tool
+python3 cisa_kev/cli.py
 ```
+
+#### Getting help from the command line
+
+To view the usage guide:
 
 ```bash
-curl https://raw.githubusercontent.com/whitfieldsdad/cisa_kev/main/cisa_kev/kev.py -s | python3 -
+poetry run cisa_kev --help
 ```
+
+```text
+Usage: cisa_kev [OPTIONS] COMMAND [ARGS]...
+
+  CISA Known Exploited Vulnerabilities (KEV) Catalog
+
+Options:
+  --download-path TEXT            [default: /var/folders/ps/c0fn47n54sg08wck9_
+                                  x9qncr0000gp/T/f70af4e5-602d-4b6f-a6cd-01be6
+                                  03ae2bb/known_exploited_vulnerabilities.json
+                                  ]
+  --download-url TEXT             [default: https://www.cisa.gov/sites/default
+                                  /files/feeds/known_exploited_vulnerabilities
+                                  .json]
+  --verify-tls / --no-verify-tls  [default: verify-tls]
+  --help                          Show this message and exit.
+
+Commands:
+  download  Download the latest version of the catalog.
+  query     Query the catalog.
+```
+
+#### Downloading the CISA KEV catalog from the command line
+
+To download the latest version of the CISA KEV catalog:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/whitfieldsdad/cisa_kev/main/cisa_kev/kev.py | python3 -
+poetry run cisa_kev download
 ```
+
+```text
+INFO:cisa_kev.client:Writing https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json to /var/folders/ps/c0fn47n54sg08wck9_x9qncr0000gp/T/f70af4e5-602d-4b6f-a6cd-01be603ae2bb/known_exploited_vulnerabilities.json
+```
+
+To disable TLS certificate validation:
 
 ```bash
-powershell -command "& { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/whitfieldsdad/cisa_kev/main/cisa_kev/kev.py' -UseBasicParsing | Invoke-Expression }"
+poetry run cisa_kev --no-verify-tls download
 ```
 
-> ℹ️ Glob patterns are supported and all pattern matching is performed case insensitively (i.e. you could use `--vendor microsoft` or `--vendor Microsoft` interchangeably).
-
-#### Downloading the catalog
-
-The catalog is available in [CSV](https://www.cisa.gov/sites/default/files/csv/known_exploited_vulnerabilities.csv) or [JSON](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json) format, but at this time, only the [JSON format](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities_schema.json) is supported by this client.
-
-The following command will download the catalog in JSON format, transform it, and save it to a local file:
+To customize where the catalog will be downloaded to:
 
 ```bash
-python3 cisa_kev/kev.py -o data/known_exploited_vulnerabilities.json
+poetry run cisa_kev --download-path data/known_exploited_vulnerabilities.json download
 ```
 
-The structure of the file will be as follows:
+> ℹ️ The output directory will be automatically created if it does not already exist.
+
+#### Querying the CISA KEV catalog from the command line
+
+The following options are available when querying the catalog via the command line:
+
+```bash
+poetry run cisa_kev query --help
+```
+
+```text
+Usage: cisa_kev query [OPTIONS]
+
+  Query the catalog.
+
+Options:
+  --cve-id TEXT
+  --vendor TEXT
+  --product TEXT
+  --ransomware-related / --not-ransomware-related
+  --overdue / --not-overdue
+  --min-date-added PARSE_DATE
+  --max-date-added PARSE_DATE
+  --min-due-date PARSE_DATE
+  --max-due-date PARSE_DATE
+  -o, --output-file TEXT
+  --output-format [csv|json|jsonl|parquet]
+                                  [default: json]
+  --help                          Show this message and exit.
+```
+
+To search for vulnerabilities known to be used in ransomware campaigns in the wild:
+
+```bash
+poetry run cisa_kev query --ransomware-related --output-format=jsonl | jq
+```
 
 ```json
+...
 {
-  "version": "2024.01.08",
-  "time_released": "2024-01-08T15:01:52.959100+00:00",
-  "vulnerabilities": [
-    {
-      "cve_id": "CVE-2021-34527",
-      "vendor": "Microsoft",
-      "product": "Windows",
-      "name": "Microsoft Windows Print Spooler Remote Code Execution Vulnerability",
-      "description": "Microsoft Windows Print Spooler contains an unspecified vulnerability due to the Windows Print Spooler service improperly performing privileged file operations. Successful exploitation allows an attacker to perform remote code execution with SYSTEM privileges. The vulnerability is also known under the moniker of PrintNightmare.",
-      "date_added": "2021-11-03",
-      "due_date": "2021-07-20",
-      "required_action": "Apply updates per vendor instructions.",
-      "known_ransomware_campaign_use": true,
-      "notes": "Reference CISA's ED 21-04 (https://www.cisa.gov/emergency-directive-21-04) for further guidance and requirements."
-    },
-    ...
-  ]
+  "cve_id": "CVE-2023-34362",
+  "vendor": "Progress",
+  "product": "MOVEit Transfer",
+  "name": "Progress MOVEit Transfer SQL Injection Vulnerability",
+  "description": "Progress MOVEit Transfer contains a SQL injection vulnerability that could allow an unauthenticated attacker to gain unauthorized access to MOVEit Transfer's database. Depending on the database engine being used (MySQL, Microsoft SQL Server, or Azure SQL), an attacker may be able to infer information about the structure and contents of the database in addition to executing SQL statements that alter or delete database elements.",
+  "date_added": "2023-06-02",
+  "due_date": "2023-06-23",
+  "required_action": "Apply updates per vendor instructions.",
+  "known_ransomware_campaign_use": true,
+  "notes": "This CVE has a CISA AA located here: https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-158a. Please see the AA for associated IOCs. Additional information is available at: https://community.progress.com/s/article/MOVEit-Transfer-Critical-Vulnerability-31May2023."
 }
+...
 ```
 
-To download the catalog without modifying it you could use `curl`:
+To search for vulnerabilities by CVE ID:
 
 ```bash
-curl https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json -o data/known_exploited_vulnerabilities.json
+poetry run kev query --cve-id=CVE-2023-34362 --cve-id=CVE-2014-0160 --output-format=jsonl | jq
 ```
-
-Or, `wget`:
-
-```bash
-wget -qO- https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json -O data/known_exploited_vulnerabilities.json
-```
-
-The structure of the catalog will be as follows and is described in a [JSON schema](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities_schema.json) maintained by CISA.
 
 ```json
 {
-    "title": "CISA Catalog of Known Exploited Vulnerabilities",
-    "catalogVersion": "2024.01.08",
-    "dateReleased": "2024-01-08T15:01:52.9591Z",
-    "count": 1061,
-    "vulnerabilities": [
-        {
-            "cveID": "CVE-2021-34527",
-            "vendorProject": "Microsoft",
-            "product": "Windows",
-            "vulnerabilityName": "Microsoft Windows Print Spooler Remote Code Execution Vulnerability",
-            "dateAdded": "2021-11-03",
-            "shortDescription": "Microsoft Windows Print Spooler contains an unspecified vulnerability due to the Windows Print Spooler service improperly performing privileged file operations. Successful exploitation allows an attacker to perform remote code execution with SYSTEM privileges. The vulnerability is also known under the moniker of PrintNightmare.",
-            "requiredAction": "Apply updates per vendor instructions.",
-            "dueDate": "2021-07-20",
-            "knownRansomwareCampaignUse": "Known",
-            "notes": "Reference CISA's ED 21-04 (https:\/\/www.cisa.gov\/emergency-directive-21-04) for further guidance and requirements."
-        },
-        ...
-    ]
-}
-```
-
-#### Query the catalog via the command line
-
-To search for vulnerabilities by vendor name, use the `--vendor` option:
-
-```bash
-python3 cisa_kev/kev.py -i data/known_exploited_vulnerabilities.json --vendor microsoft --output-format=jsonl | jq -r '.cve_id'
-```
-
-```text
-...
-CVE-2023-36884
-CVE-2023-38180
-CVE-2023-41763
-```
-
-To search for vulnerabilities by product name, use the `--product` option:
-
-```bash
-python3 cisa_kev/kev.py -i data/known_exploited_vulnerabilities.json --vendor apache --product 'log4j*' --output-format=jsonl | jq -r '.cve_id'
-```
-
-```text
-...
-CVE-2021-44228
-CVE-2021-45046
-```
-
-To search for vulnerabilities related to ransomware campaigns, use the `--ransomware` option:
-
-```bash
-python3 cisa_kev/kev.py -i data/known_exploited_vulnerabilities.json --ransomware --output-format=jsonl | jq -r '.cve_id'
-```
-
-```text
-...
-CVE-2023-42793
-CVE-2023-46604
-CVE-2023-4966
-```
-
-To search for vulnerabilities that are overdue for patching, use the `--overdue` option:
-
-```bash
-python3 cisa_kev/kev.py -i data/known_exploited_vulnerabilities.json --overdue --output-format=jsonl | jq -r '.cve_id'
-```
-
-```text
-CVE-2023-5631
-CVE-2023-6345
-CVE-2023-6448
-...
-```
-
-To see when the vulnerabilities are due, you can either list the entire entries:
-
-```bash
-python3 cisa_kev/kev.py -i data/known_exploited_vulnerabilities.json --overdue --output-format=jsonl | jq
-```
-
-```json
-...
-{
-  "cve_id": "CVE-2023-32049",
-  "vendor": "Microsoft",
-  "product": "Windows",
-  "name": "Microsoft Windows Defender SmartScreen Security Feature Bypass Vulnerability",
-  "description": "Microsoft Windows Defender SmartScreen contains a security feature bypass vulnerability that allows an attacker to bypass the Open File - Security Warning prompt.",
-  "date_added": "2023-07-11",
-  "due_date": "2023-08-01",
-  "required_action": "Apply updates per vendor instructions or discontinue use of the product if updates are unavailable.",
+  "cve_id": "CVE-2014-0160",
+  "vendor": "OpenSSL",
+  "product": "OpenSSL",
+  "name": "OpenSSL Information Disclosure Vulnerability",
+  "description": "The TLS and DTLS implementations in OpenSSL do not properly handle Heartbeat Extension packets, which allows remote attackers to obtain sensitive information.",
+  "date_added": "2022-05-04",
+  "due_date": "2022-05-25",
+  "required_action": "Apply updates per vendor instructions.",
   "known_ransomware_campaign_use": false,
-  "notes": "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2023-32049"
+  "notes": ""
 }
-...
+{
+  "cve_id": "CVE-2023-34362",
+  "vendor": "Progress",
+  "product": "MOVEit Transfer",
+  "name": "Progress MOVEit Transfer SQL Injection Vulnerability",
+  "description": "Progress MOVEit Transfer contains a SQL injection vulnerability that could allow an unauthenticated attacker to gain unauthorized access to MOVEit Transfer's database. Depending on the database engine being used (MySQL, Microsoft SQL Server, or Azure SQL), an attacker may be able to infer information about the structure and contents of the database in addition to executing SQL statements that alter or delete database elements.",
+  "date_added": "2023-06-02",
+  "due_date": "2023-06-23",
+  "required_action": "Apply updates per vendor instructions.",
+  "known_ransomware_campaign_use": true,
+  "notes": "This CVE has a CISA AA located here: https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-158a. Please see the AA for associated IOCs. Additional information is available at: https://community.progress.com/s/article/MOVEit-Transfer-Critical-Vulnerability-31May2023."
+}
 ```
 
-Or, just the dates:
+To search for vulnerabilities by vendor:
 
 ```bash
-python3 cisa_kev/kev.py -i data/known_exploited_vulnerabilities.json --overdue --output-format=jsonl --output-type dates | jq -c
+poetry run cisa_kev query --vendor=microsoft --output-format=jsonl | jq -c
 ```
 
 ```json
 ...
-{"cve_id":"CVE-2023-41266","date_added":"2023-12-07","due_date":"2023-12-28"}
-{"cve_id":"CVE-2023-41265","date_added":"2023-12-07","due_date":"2023-12-28"}
-{"cve_id":"CVE-2023-6448","date_added":"2023-12-11","due_date":"2023-12-18"}
+{"cve_id":"CVE-2023-36036","vendor":"Microsoft","product":"Windows","name":"Microsoft Windows Cloud Files Mini Filter Driver Privilege Escalation Vulnerability","description":"Microsoft Windows Cloud Files Mini Filter Driver contains a privilege escalation vulnerability that could allow an attacker to gain SYSTEM privileges.","date_added":"2023-11-14","due_date":"2023-12-05","required_action":"Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.","known_ransomware_campaign_use":false,"notes":"https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2023-36036"}
+{"cve_id":"CVE-2023-36584","vendor":"Microsoft","product":"Windows","name":"Microsoft Windows Mark of the Web (MOTW) Security Feature Bypass Vulnerability","description":"Microsoft Windows Mark of the Web (MOTW) contains a security feature bypass vulnerability resulting in a limited loss of integrity and availability of security features.","date_added":"2023-11-16","due_date":"2023-12-07","required_action":"Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.","known_ransomware_campaign_use":false,"notes":"https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-36584"}
+{"cve_id":"CVE-2023-29357","vendor":"Microsoft","product":"SharePoint Server","name":"Microsoft SharePoint Server Privilege Escalation Vulnerability","description":"Microsoft SharePoint Server contains an unspecified vulnerability that allows an unauthenticated attacker, who has gained access to spoofed JWT authentication tokens, to use them for executing a network attack. This attack bypasses authentication, enabling the attacker to gain administrator privileges.","date_added":"2024-01-10","due_date":"2024-01-31","required_action":"Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.","known_ransomware_campaign_use":false,"notes":"https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-29357"}
+...
 ```
 
-To lookup a specific vulnerability, use the `--cve-id` option:
+To search for vulnerabilities by vendor and list only CVE IDs you could use `jq`:
 
 ```bash
-python3 cisa_kev/kev.py -i data/known_exploited_vulnerabilities.json --cve-id CVE-2020-0796 --output-format=jsonl --output-ty
-pe dates | jq -c
+poetry run kev query --vendor=microsoft --output-format=jsonl | jq -r '.cve_id' > example-cve-ids.txt
 ```
 
-```json
-{"cve_id":"CVE-2020-0796","date_added":"2022-02-10","due_date":"2022-08-10"}
+To search for vulnerabilities by CVE ID using a line-delimited file of CVE IDs:
+
+```bash
+poetry run kev query --cve-id-file example-cve-ids.txt --ransomware-related --output-format=jsonl | jq -r '.cve_id' | sort
+```
+
+```text
+CVE-2013-0074
+CVE-2013-2551
+CVE-2015-1701
+...
+CVE-2023-24880
+CVE-2023-28252
+CVE-2023-36884
 ```
