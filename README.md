@@ -2,6 +2,8 @@
 
 A wildly opinionated Python 3 client for the [CISA Known Exploited Vulnerabilities (KEV) Catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog).
 
+⚠️ This project is under active development ⚠️
+
 ## Features
 
 - Automatically download the latest version of the CISA KEV catalog;
